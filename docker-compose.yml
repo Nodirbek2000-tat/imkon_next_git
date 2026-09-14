@@ -1,0 +1,27 @@
+# Imkon FRONTEND — Next.js
+#
+# Backend repodan KEYIN ishga tushiriladi (u `imkon_net` tarmog'ini yaratadi).
+#
+#   docker compose build
+#   docker compose up -d
+
+name: imkon-frontend
+
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        # Brauzer kodiga BUILD paytida yoziladi — shu repodagi `.env` dan
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+    restart: unless-stopped
+    environment:
+      # Django'ga ichki tarmoq orqali — brauzer bu manzilni ko'rmaydi
+      DJANGO_API_URL: http://backend:8000
+      NODE_ENV: production
+    networks: [imkon_net]
+
+networks:
+  imkon_net:
+    external: true

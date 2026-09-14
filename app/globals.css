@@ -1,0 +1,253 @@
+@import "tailwindcss";
+
+/* `dark:` endi OS sozlamasiga emas, <html data-theme="dark"> ga qaraydi.
+   Default — kechki rejim; foydalanuvchi header'dagi tugma bilan almashtiradi. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ============================================================
+   IMKON — dizayn tizimi
+   Asosiy rang: qizil (warm crimson). Fon: iliq krem, sovuq oq emas —
+   qo'l mehnati platformasiga issiqlik beradi.
+   ============================================================ */
+
+@theme {
+  /* --- Brend: qizil --- */
+  --color-brand-50: #fff1f2;
+  --color-brand-100: #ffe0e3;
+  --color-brand-200: #ffc6cc;
+  --color-brand-300: #ff9ca8;
+  --color-brand-400: #fb6478;
+  --color-brand-500: #f0334d;
+  --color-brand-600: #dc1b38;
+  --color-brand-700: #b9122c;
+  --color-brand-800: #9a1329;
+  --color-brand-900: #831528;
+  --color-brand-950: #490611;
+
+  /* --- Iliq neytral (matn, fon, chegara) --- */
+  --color-ink-50: #faf8f6;
+  --color-ink-100: #f4f0eb;
+  --color-ink-200: #e7e0d8;
+  --color-ink-300: #d3c8bc;
+  --color-ink-400: #a89c90;
+  --color-ink-500: #857a6e;
+  --color-ink-600: #6b6158;
+  --color-ink-700: #574f48;
+  --color-ink-800: #3b3530;
+  --color-ink-900: #211d1a;
+  --color-ink-950: #141110;
+
+  /* --- Auksion urg'usi: oltin --- */
+  --color-gold-100: #fdf3dd;
+  --color-gold-300: #f1cd7e;
+  --color-gold-500: #d99a2b;
+  --color-gold-700: #a06d14;
+
+  /* --- Semantik --- */
+  --color-success: #158463;
+  --color-danger: #dc1b38;
+
+  /* --- Shrift --- */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-geist-sans), sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* --- Radius --- */
+  --radius-card: 1.25rem;
+
+  /* --- Soya: iliq, qora emas --- */
+  --shadow-soft: 0 1px 2px rgb(59 53 48 / 0.04), 0 4px 16px rgb(59 53 48 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(59 53 48 / 0.05), 0 16px 40px rgb(59 53 48 / 0.12);
+  --shadow-brand: 0 8px 30px rgb(220 27 56 / 0.28);
+
+  /* --- Animatsiya --- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-marquee: marquee 42s linear infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-ring: ring 2s var(--ease-out-soft) infinite;
+  --animate-float: float 7s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(220 27 56 / 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(220 27 56 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(220 27 56 / 0);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1.5deg);
+  }
+}
+
+/* ============================================================
+   Asos
+   ============================================================ */
+
+/* Default — kechki rejim */
+:root,
+:root[data-theme="dark"] {
+  --bg: var(--color-ink-950);
+  --fg: var(--color-ink-100);
+  --surface: #1c1917;
+  --line: #322b26;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: var(--color-ink-50);
+  --fg: var(--color-ink-900);
+  --surface: #ffffff;
+  --line: var(--color-ink-200);
+  color-scheme: light;
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Sarlavhalar — display shrift, tor tracking */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* A11y: klaviatura fokusi HAR DOIM ko'rinadi.
+     Platformadan imkoniyati cheklangan foydalanuvchilar foydalanadi —
+     bu majburiy, chiroy uchun o'chirilmaydi. */
+  :focus-visible {
+    outline: 3px solid var(--color-brand-600);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--color-brand-600);
+    color: white;
+  }
+
+  /* Skroll paneli */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-300);
+    border: 3px solid var(--bg);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand-500);
+  }
+}
+
+@layer utilities {
+  /* Klaviatura foydalanuvchilari uchun "kontentga o'tish" havolasi */
+  .sr-only-focusable:not(:focus) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Nozik don teksturasi — qo'lda ishlangan his beradi */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Gorizontal maska — marquee chetlari yumshoq so'nadi */
+  .mask-fade-x {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 8%,
+      black 92%,
+      transparent
+    );
+  }
+}
+
+/* ============================================================
+   A11y: harakatni kamaytirish
+   Vestibulyar buzilishi bor foydalanuvchilar uchun — animatsiya to'xtaydi.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

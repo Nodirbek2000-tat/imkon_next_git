@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+
+# Sirlar образga tushmaydi — `docker compose` orqali beriladi
+.env
+.env.local
+.env*.local
+
+.git/
+.gitignore
+.idea/
+.vscode/
+npm-debug.log*
