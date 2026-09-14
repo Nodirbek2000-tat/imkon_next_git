@@ -8,8 +8,9 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-# `npm ci` — lock fayl bo'yicha aniq o'rnatish. Build takrorlanuvchi bo'ladi.
-RUN npm ci
+# `npm install` (`npm ci` emas): lock fayl Windows'da yaratilgan, Linux
+# uchun kerakli ixtiyoriy paketlar unda yo'q — `npm ci` shunda yiqiladi.
+RUN npm install --no-audit --no-fund
 
 # ---------------------------------------------------------------- 2. build
 FROM node:22-alpine AS builder
