@@ -10,16 +10,22 @@ import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { api, ApiError } from "@/lib/api";
+import { normalizeSchoolLogin, SCHOOL_LOGIN_RE } from "@/lib/utils";
 
 /**
- * Kirish ikki yo'l bilan: Google yoki Telegram bot.
+ * Oddiy foydalanuvchi Google yoki Telegram bot bilan kiradi.
  *
  * Telefon + parol yo'q — raqamni Telegram o'zi tasdiqlab beradi (botdagi
  * "kontakt yuborish" tugmasi), ya'ni SMS ham, parol ham ortiqcha bo'lib
  * qoladi. Eski SMS akkauntlari yo'qolmaydi: bot xuddi shu raqamni topib
  * mavjud akkauntga bog'lanadi.
+ *
+ * Maktablar esa klassik login + parol bilan kiradi — ularda telefon raqami
+ * umuman yo'q, akkauntni administrator qo'lda ochib beradi. Shu sababli
+ * maktab kirishi Google/Telegram sozlamalariga bog'liq emas: u har holda
+ * ko'rinib turadi.
  */
-type Step = "choose" | "telegram";
+type Step = "choose" | "telegram" | "maktab";
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
 const HAS_GOOGLE = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
@@ -28,6 +34,16 @@ function TelegramIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
       <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
+    </svg>
+  );
+}
+
+/** Maktab binosi — eshigi ochiq, ya'ni bitta yo'l bilan chizilgan shakl. */
+function SchoolIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M12 2.2 1.4 8.1h21.2L12 2.2Z" />
+      <path d="M4.2 9.6v11.6h4.6v-5.4h6.4v5.4h4.6V9.6H4.2Z" />
     </svg>
   );
 }
@@ -55,6 +71,13 @@ function LoginContent() {
 
   const [step, setStep] = useState<Step>("choose");
   const [code, setCode] = useState("");
+  const [schoolLogin, setSchoolLogin] = useState("");
+  const [schoolPassword, setSchoolPassword] = useState("");
+  // Xato qaysi maydonga tegishli ekani ma'lum bo'lsa — aynan o'sha
+  // maydon ostida chiqadi. Faqat "login yoki parol" noma'lum bo'lgan
+  // holat umumiy qatorda qoladi
+  const [loginError, setLoginError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -85,6 +108,49 @@ function LoginContent() {
     }
   };
 
+  const submitSchool = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setLoginError("");
+    setPasswordError("");
+
+    // Bo'sh maydon bilan so'rov yuborishning ma'nosi yo'q
+    if (!schoolLogin) {
+      setLoginError("Maktab loginini kiriting");
+      return;
+    }
+
+    // Login shakli backend qoidasiga mos kelmasa — so'rovni YUBORMAYMIZ.
+    // Backend bunday holatda ham "Login yoki parol noto'g'ri" deb javob
+    // beradi, o'qituvchi esa aybni parolda deb o'ylab, uni qayta-qayta
+    // yozib ovora bo'ladi. Shuning uchun xatoni o'zimiz aniq aytamiz
+    if (schoolLogin.length < 3) {
+      setLoginError("Login juda qisqa — kamida 3 belgi bo'lishi kerak.");
+      return;
+    }
+    if (!SCHOOL_LOGIN_RE.test(schoolLogin)) {
+      setLoginError("Login harf yoki raqam bilan boshlanadi, chiziqcha bilan emas.");
+      return;
+    }
+
+    if (!schoolPassword) {
+      setPasswordError("Parolni kiriting");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await api.schoolLogin(schoolLogin, schoolPassword);
+      login(result.user);
+      router.push(redirectTo);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Login yoki parol xato");
+      setSchoolPassword("");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const fade = {
     initial: reduced ? { opacity: 0 } : { opacity: 0, x: 24 },
     animate: { opacity: 1, x: 0 },
@@ -108,7 +174,9 @@ function LoginContent() {
             <p className="mt-3 text-ink-600 dark:text-ink-400">
               {step === "choose"
                 ? "Davom etish uchun akkauntingizni tanlang."
-                : "Botdagi kodni shu yerga kiriting."}
+                : step === "telegram"
+                  ? "Botdagi kodni shu yerga kiriting."
+                  : "Maktab login va parolingizni kiriting."}
             </p>
           </div>
 
@@ -133,14 +201,43 @@ function LoginContent() {
                   </button>
                 )}
 
-                {/* Ikkalasi ham sozlanmagan bo'lsa karta bo'm-bo'sh qolardi —
-                    foydalanuvchi nima qilishini bilmay turib qolmasin */}
+                {/* Google ham, bot ham sozlanmagan bo'lsa tepa qism bo'm-bo'sh
+                    qolardi. Maktab kirishi esa ishlayveradi — shuning uchun
+                    xabar "hammasi o'chiq" demaydi, faqat o'sha ikkisini aytadi */}
                 {!BOT_USERNAME && !HAS_GOOGLE && (
-                  <p className="py-4 text-center text-sm text-ink-600 dark:text-ink-400">
-                    Kirish usullari hozircha sozlanmagan. Administrator bilan
-                    bog&apos;laning.
+                  <p className="py-2 text-center text-sm text-ink-600 dark:text-ink-400">
+                    Xaridorlar uchun kirish hozircha sozlanmagan. Administrator
+                    bilan bog&apos;laning.
                   </p>
                 )}
+
+                {/* Maktab — butunlay boshqa yo'l, shuning uchun ko'rinadigan
+                    chiziq bilan ajratiladi. Tepada hech narsa bo'lmasa
+                    chiziqning ham hojati yo'q */}
+                {(BOT_USERNAME || HAS_GOOGLE) && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="h-px flex-1 bg-[var(--line)]" />
+                    <span className="text-[13px] text-ink-600 dark:text-ink-400">yoki</span>
+                    <span className="h-px flex-1 bg-[var(--line)]" />
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep("maktab");
+                      setError("");
+                    }}
+                    className="flex h-11 w-full items-center justify-center gap-3 rounded-full border border-[var(--line)] px-5 text-sm font-medium transition-colors duration-300 hover:border-brand-600 hover:text-brand-600"
+                  >
+                    <SchoolIcon className="size-5 text-brand-600" />
+                    Maktab sifatida kirish
+                  </button>
+                  <p className="mt-2.5 text-center text-[13px] leading-relaxed text-ink-600 dark:text-ink-400">
+                    Maktablar uchun login va parolni administrator beradi.
+                  </p>
+                </div>
 
                 {error && (
                   <p role="alert" className="pt-1 text-center text-sm font-medium text-brand-600">
@@ -148,7 +245,7 @@ function LoginContent() {
                   </p>
                 )}
               </motion.div>
-            ) : (
+            ) : step === "telegram" ? (
               <motion.form key="telegram" {...fade} onSubmit={verifyTelegram} className="space-y-5">
                 <button
                   type="button"
@@ -194,6 +291,79 @@ function LoginContent() {
                 <Button size="lg" className="w-full" disabled={busy || code.length !== 6}>
                   {busy ? "Tekshirilmoqda…" : "Tasdiqlash"}
                 </Button>
+              </motion.form>
+            ) : (
+              <motion.form key="maktab" {...fade} onSubmit={submitSchool} className="space-y-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep("choose");
+                    setSchoolPassword("");
+                    setError("");
+                    setLoginError("");
+                    setPasswordError("");
+                  }}
+                  className="text-sm font-medium text-ink-600 hover:text-brand-600 dark:text-ink-400"
+                >
+                  ← Orqaga
+                </button>
+
+                <Input
+                  id="school-login"
+                  label="Maktab logini"
+                  hint="Masalan: 15-maktab-chirchiq. Faqat kichik lotin harflari, raqamlar va chiziqcha."
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  placeholder="15-maktab-chirchiq"
+                  value={schoolLogin}
+                  // Tozalash qoidasi admin panelidagi bilan BIR XIL bo'lishi
+                  // shart: ikkovi ham `normalizeSchoolLogin` ni ishlatadi.
+                  // Aks holda bo'sh joyli login bir joyda "chilonzor-12",
+                  // boshqasida "chilonzor12" bo'lib chiqadi va qog'ozdagi
+                  // loginni ko'chirgan o'qituvchi tizimga kira olmaydi
+                  onChange={(e) => {
+                    setSchoolLogin(normalizeSchoolLogin(e.target.value));
+                    setLoginError("");
+                    setError("");
+                  }}
+                  error={loginError}
+                  disabled={busy}
+                />
+
+                <Input
+                  id="school-password"
+                  label="Parol"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••"
+                  value={schoolPassword}
+                  onChange={(e) => {
+                    setSchoolPassword(e.target.value);
+                    setPasswordError("");
+                    setError("");
+                  }}
+                  error={passwordError}
+                  disabled={busy}
+                />
+
+                {/* Faqat serverdan kelgan xato shu yerda chiqadi: u login
+                    bilan parolning qaysi biri xato ekanini aytmaydi. Biz
+                    o'zimiz topgan xatolar maydonlar ostida ko'rinadi */}
+                {error && (
+                  <p role="alert" className="text-sm font-medium text-brand-600">
+                    {error}
+                  </p>
+                )}
+
+                <Button size="lg" className="w-full" disabled={busy}>
+                  {busy ? "Kirilmoqda…" : "Kirish"}
+                </Button>
+
+                <p className="text-center text-[13px] leading-relaxed text-ink-600 dark:text-ink-400">
+                  Login va parolni esdan chiqarsangiz administrator yangisini
+                  beradi.
+                </p>
               </motion.form>
             )}
           </div>

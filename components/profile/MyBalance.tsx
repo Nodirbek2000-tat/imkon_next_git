@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/PageHeader";
 import {
   api,
+  ApiError,
   type ApiBalance,
   type ApiBalanceTransaction,
 } from "@/lib/api";
@@ -15,13 +17,26 @@ export function MyBalance() {
     null,
   );
 
+  // Xato alohida saqlanadi. Avval `catch` da `setBalance(null)` qilinardi —
+  // `null` esa "hali yuklanmoqda" degani ham edi, shuning uchun so'rov
+  // yiqilsa Skeleton abadiy aylanib turardi va foydalanuvchi nima
+  // bo'lganini bilmasdi.
+  const [error, setError] = useState("");
+
   useEffect(() => {
-    api.myBalance().then(setBalance).catch(() => setBalance(null));
+    api
+      .myBalance()
+      .then(setBalance)
+      .catch((err) =>
+        setError(err instanceof ApiError ? err.message : "Balansni yuklab bo'lmadi"),
+      );
     api
       .balanceTransactions()
       .then((data) => setTransactions(data.results))
       .catch(() => setTransactions([]));
   }, []);
+
+  if (error) return <ErrorState message={error} />;
 
   if (!balance || transactions === null) {
     return (

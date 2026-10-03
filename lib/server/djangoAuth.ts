@@ -15,6 +15,17 @@ export const DJANGO_API_URL = process.env.DJANGO_API_URL ?? "http://localhost:80
 const ACCESS_COOKIE = "imkon_access";
 const REFRESH_COOKIE = "imkon_refresh";
 
+/**
+ * Sessiya qancha davom etadi. Kerak bo'lsa `SESSION_DAYS` bilan o'zgartiriladi
+ * (server-only — NEXT_PUBLIC_ prefiksi YO'Q, brauzerga chiqmaydi).
+ *
+ * Diqqat: bu son va backenddagi `REFRESH_TOKEN_LIFETIME_DAYS` — ikki alohida
+ * qiymat. Qaysi biri KICHIK bo'lsa, o'sha hal qiladi. 30 kundan uzaytirmoqchi
+ * bo'lsangiz, ikkalasini ham oshirish kerak.
+ */
+const SESSION_DAYS = Number(process.env.SESSION_DAYS ?? 30);
+const SESSION_MAX_AGE = 60 * 60 * 24 * SESSION_DAYS;
+
 const baseCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
@@ -24,8 +35,11 @@ const baseCookieOptions = {
 
 export async function setAuthCookies(access: string, refresh: string) {
   const store = await cookies();
-  store.set(ACCESS_COOKIE, access, baseCookieOptions);
-  store.set(REFRESH_COOKIE, refresh, { ...baseCookieOptions, maxAge: 60 * 60 * 24 * 30 });
+  // IKKALASIGA ham `maxAge` kerak. Avval `access` da u yo'q edi — shuning
+  // uchun u "sessiya cookie"si bo'lib, brauzer yopilishi bilan o'chardi va
+  // foydalanuvchi har safar qaytadan kirishga majbur bo'lardi.
+  store.set(ACCESS_COOKIE, access, { ...baseCookieOptions, maxAge: SESSION_MAX_AGE });
+  store.set(REFRESH_COOKIE, refresh, { ...baseCookieOptions, maxAge: SESSION_MAX_AGE });
 }
 
 export async function clearAuthCookies() {
@@ -81,18 +95,30 @@ export async function refreshAccessToken(): Promise<{ access: string; refresh: s
   const refresh = await getRefreshCookie();
   if (!refresh) return null;
 
-  let response: Response;
-  try {
-    response = await fetch(`${DJANGO_API_URL}/api/auth/token/refresh/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh }),
-      cache: "no-store",
-    });
-  } catch {
-    return null;
+  // Bir marta qayta uriniladi. Tarmoq uzilishi yoki backendning vaqtinchalik
+  // 5xx javobi tufayli foydalanuvchi tizimdan chiqib qolmasin — bitta sekundlik
+  // uzilish 30 kunlik sessiyani buzmasligi kerak.
+  //
+  // 401 da QAYTA URINILMAYDI: u "refresh token haqiqatan yaroqsiz" degani,
+  // takrorlash foydasiz va faqat kutishni uzaytiradi.
+  let response: Response | null = null;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetch(`${DJANGO_API_URL}/api/auth/token/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh }),
+        cache: "no-store",
+      });
+    } catch {
+      response = null; // tarmoq xatosi — qayta urinamiz
+    }
+
+    if (response && (response.ok || response.status < 500)) break;
   }
-  if (!response.ok) return null;
+
+  if (!response || !response.ok) return null;
 
   const data = await response.json();
   return { access: data.access, refresh: data.refresh ?? refresh };

@@ -120,15 +120,23 @@ export type Paginated<T> = {
 
 export type ApiUser = {
   id: number;
-  phone: string;
+  /** Maktab va o'quvchi akkauntida raqam YO'Q — `null` keladi. */
+  phone: string | null;
   full_name: string;
   avatar: string | null;
   bio: string;
   email: string;
-  role: "user" | "artisan";
+  role: "user" | "artisan" | "school" | "student";
   is_artisan: boolean;
   is_admin: boolean;
   artisan_slug: string | null;
+  /** Maktab akkaunti — login/parol bilan kiradi, o'quvchilarini boshqaradi. */
+  is_school: boolean;
+  /** O'quvchi — maktab kiritgan, o'zi tizimga kirmaydi. */
+  is_student: boolean;
+  /** Maktabning o'z ommaviy sahifasi (`/maktablar/<slug>`). */
+  school_slug: string | null;
+  school_name: string | null;
   language: string;
   is_phone_verified: boolean;
   created_at: string;
@@ -157,7 +165,14 @@ export type ApiProduct = {
   price: string;
   sale_type: "fixed" | "auction";
   status: string;
-  artisan: { id: number; slug: string; shop_name: string; region: string };
+  artisan: {
+    id: number;
+    slug: string;
+    shop_name: string;
+    region: string;
+    /** `"student"` — maktab o'quvchisining ishi. */
+    kind: "artisan" | "student";
+  };
   category: ApiCategory;
   main_image: ApiImage;
   /** Karta ustida sichqoncha yurganda almashadigan rasmlar (eng ko'pi 4 ta). */
@@ -213,13 +228,82 @@ export type ApiArtisan = {
   crafts: ApiCraft[];
   region: string;
   banner: string | null;
+  /** `"student"` — bu maktab o'quvchisi, oddiy hunarmand emas. */
+  kind: "artisan" | "student";
   products_count: number;
   posts_count: number;
   sold_count: number;
   created_at: string;
 };
 
-export type ApiArtisanDetail = ApiArtisan & { about: string };
+/** O'quvchi sahifasida ko'rinadigan maktab — bosilsa maktab sahifasiga boradi. */
+export type ApiArtisanSchool = {
+  slug: string;
+  name: string;
+  logo: string | null;
+  region: string;
+  district: string;
+};
+
+export type ApiArtisanDetail = ApiArtisan & {
+  about: string;
+  /** Oddiy hunarmandda `null`, o'quvchida — uning maktabi. */
+  school: ApiArtisanSchool | null;
+  student_grade: string;
+};
+
+/* --- maktablar --- */
+
+/** Maktab o'quvchisi — maktab paneli va maktab sahifasida ko'rinadi. */
+export type ApiStudent = {
+  id: number;
+  slug: string;
+  full_name: string;
+  avatar: string | null;
+  student_grade: string;
+  products_count: number;
+  sold_count: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type ApiSchool = {
+  id: number;
+  slug: string;
+  name: string;
+  region: string;
+  district: string;
+  logo: string | null;
+  banner: string | null;
+  students_count: number;
+  created_at: string;
+};
+
+export type ApiSchoolDetail = ApiSchool & {
+  about: string;
+  contact_phone: string;
+  students: ApiStudent[];
+};
+
+/** `/api/school/me/` — maktab o'z sahifasini tahrirlaydi (xom tarjima maydonlari). */
+export type ApiMySchool = {
+  id: number;
+  slug: string;
+  /** Faqat o'qish uchun — loginni admin beradi, maktab o'zgartira olmaydi. */
+  login: string;
+  name_uz: string;
+  name_ru: string;
+  name_en: string;
+  about_uz: string;
+  about_ru: string;
+  about_en: string;
+  region: string;
+  district: string;
+  contact_phone: string;
+  logo: string | null;
+  banner: string | null;
+  students_count: number;
+};
 
 /** `MyShopView` (`/api/shop/me/`) — hunarmandning o'z do'konini tahrirlashi */
 export type ApiShop = {
@@ -366,10 +450,10 @@ export type ApiBalanceTransaction = {
 
 export type AdminUser = {
   id: number;
-  phone: string;
+  phone: string | null;
   full_name: string;
   avatar: string | null;
-  role: "user" | "artisan";
+  role: "user" | "artisan" | "school" | "student";
   is_admin: boolean;
   is_active: boolean;
   is_phone_verified: boolean;
@@ -436,11 +520,66 @@ export type AuctionCreateBody = {
   end_at: string; // ISO
 };
 
+/**
+ * Admin ko'radigan maktab.
+ *
+ * `password` bu yerda YO'Q — u faqat ochish va parol yangilash javobida
+ * bir marta qaytadi (`AdminSchoolCreated`), bazada esa hash saqlanadi.
+ */
+export type AdminSchool = {
+  id: number;
+  slug: string;
+  login: string;
+  name_uz: string;
+  name_ru: string;
+  name_en: string;
+  about_uz: string;
+  about_ru: string;
+  about_en: string;
+  region: string;
+  district: string;
+  contact_phone: string;
+  logo: string | null;
+  banner: string | null;
+  students_count: number;
+  is_active: boolean;
+  /** `user.is_active` — maktab tizimga kira oladimi. */
+  can_login: boolean;
+  created_at: string;
+};
+
+/** Maktab ochilgandagi javob — parol shu yerda BIR MARTA ko'rinadi. */
+export type AdminSchoolCreated = {
+  detail: string;
+  school: AdminSchool;
+  login: string;
+  password: string;
+};
+
+export type AdminSchoolPassword = {
+  detail: string;
+  login: string;
+  password: string;
+};
+
+export type AdminSchoolCreateBody = {
+  login: string;
+  name_uz: string;
+  /** Bo'sh qoldirilsa backend o'zi yaratadi. */
+  password?: string;
+  region?: string;
+  district?: string;
+  contact_phone?: string;
+  about_uz?: string;
+};
+
 export type AdminStats = {
   users_total: number;
   users_new_week: number;
   artisans_total: number;
   admins_total: number;
+  schools_total: number;
+  students_total: number;
   applications_pending: number;
   applications_total: number;
   products_total: number;
@@ -482,6 +621,16 @@ export const api = {
     apiFetch<{ user: ApiUser; is_new: boolean }>("/api/auth/password/", {
       method: "POST",
       body: { phone, password },
+    }),
+
+  /**
+   * Maktab kirishi. `passwordLogin`dan farqi — telefon emas, login.
+   * Maktab akkauntida raqam umuman yo'q, uni admin login/parol bilan ochadi.
+   */
+  schoolLogin: (login: string, password: string) =>
+    apiFetch<{ user: ApiUser; is_new: boolean }>("/api/auth/school/", {
+      method: "POST",
+      body: { login, password },
     }),
 
   setPassword: (password: string) =>
@@ -605,6 +754,35 @@ export const api = {
 
   updateMyShop: (form: FormData) =>
     apiFetch<ApiShop>("/api/shop/me/", { method: "PATCH", body: form, auth: true }),
+
+  /* --- maktablar (ommaviy) --- */
+
+  schools: (params: Record<string, string> = {}) =>
+    apiFetch<Paginated<ApiSchool>>(`/api/schools/?${new URLSearchParams(params)}`),
+
+  school: (slug: string) => apiFetch<ApiSchoolDetail>(`/api/schools/${slug}/`),
+
+  /* --- maktabning o'z paneli --- */
+
+  // Diqqat: `school/` birlikda — ommaviy `schools/` dan boshqa manzil.
+  mySchool: () => apiFetch<ApiMySchool>("/api/school/me/", { auth: true }),
+
+  updateMySchool: (body: FormData | Record<string, unknown>) =>
+    apiFetch<ApiMySchool>("/api/school/me/", { method: "PATCH", body, auth: true }),
+
+  /** Maktabning o'z o'quvchilari. Sahifalanmagan — to'g'ridan-to'g'ri massiv. */
+  mySchoolStudents: () => apiFetch<ApiStudent[]>("/api/school/students/", { auth: true }),
+
+  /** O'quvchi qo'shish — tasdiqlash yo'q, darhol paydo bo'ladi. */
+  createStudent: (body: FormData | Record<string, unknown>) =>
+    apiFetch<ApiStudent>("/api/school/students/", { method: "POST", body, auth: true }),
+
+  updateStudent: (slug: string, body: FormData | Record<string, unknown>) =>
+    apiFetch<ApiStudent>(`/api/school/students/${slug}/`, {
+      method: "PATCH",
+      body,
+      auth: true,
+    }),
 
   // mahsulot boshqaruvi (hunarmand)
   createProduct: (form: FormData) =>
@@ -766,4 +944,46 @@ export const adminApi = {
       method: "POST",
       auth: true,
     }),
+
+  /* --- maktablar --- */
+
+  // Sahifalanmagan — maktablar soni ko'p bo'lmaydi
+  schools: (params: Record<string, string> = {}) =>
+    apiFetch<AdminSchool[]>(
+      `/api/admin-panel/schools/?${new URLSearchParams(params)}`,
+      { auth: true },
+    ),
+
+  /** Maktab ochadi va login/parolni qaytaradi — parol faqat shu javobda. */
+  createSchool: (body: AdminSchoolCreateBody) =>
+    apiFetch<AdminSchoolCreated>("/api/admin-panel/schools/", {
+      method: "POST",
+      body,
+      auth: true,
+    }),
+
+  updateSchool: (id: number, body: FormData | Record<string, unknown>) =>
+    apiFetch<AdminSchool>(`/api/admin-panel/schools/${id}/`, {
+      method: "PATCH",
+      body,
+      auth: true,
+    }),
+
+  schoolStudents: (id: number) =>
+    apiFetch<ApiStudent[]>(`/api/admin-panel/schools/${id}/students/`, { auth: true }),
+
+  /** Yangi parol. `password` berilmasa backend o'zi yaratadi. */
+  resetSchoolPassword: (id: number, password?: string) =>
+    apiFetch<AdminSchoolPassword>(`/api/admin-panel/schools/${id}/password/`, {
+      method: "POST",
+      body: { password: password ?? "" },
+      auth: true,
+    }),
+
+  /** Maktabni yoqadi/o'chiradi — sahifa ham, login ham birga. */
+  toggleSchoolActive: (id: number) =>
+    apiFetch<{ detail: string; school: AdminSchool }>(
+      `/api/admin-panel/schools/${id}/toggle-active/`,
+      { method: "POST", auth: true },
+    ),
 };

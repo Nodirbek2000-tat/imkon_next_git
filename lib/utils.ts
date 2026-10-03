@@ -66,3 +66,40 @@ export function formatDate(iso: string, withTime = false) {
   if (!withTime) return base;
   return `${base}, ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/**
+ * Avatar o'rnida ko'rinadigan harf.
+ *
+ * Maktab va o'quvchi akkauntida telefon raqami YO'Q (`null`) — shuning
+ * uchun "ism bo'lmasa raqamdan ol" degan eski mantiq ularda yiqilardi.
+ * `+998` prefiksi tashlab yuboriladi: aks holda hamma raqamli akkaunt
+ * bir xil "+" harfi bilan ko'rinardi.
+ */
+export function initialOf(name?: string | null, fallback?: string | null) {
+  const source = (name || fallback || "").replace(/^\+998/, "").trim();
+  return (source[0] ?? "?").toUpperCase();
+}
+
+/**
+ * Maktab loginini tozalaydi.
+ *
+ * Backend qoidasi: ^[a-z0-9][a-z0-9-]{2,39}$ — kichik lotin harflari,
+ * raqam va chiziqcha.
+ *
+ * MUHIM: bu funksiya IKKI joyda ishlatiladi — admin loginni yaratganda
+ * va maktab uni kirish sahifasida yozganda. Qoida ikkalasida bir xil
+ * bo'lishi SHART: biri bo'sh joyni chiziqchaga, ikkinchisi hech narsaga
+ * aylantirsa, bitta qog'ozdagi login ikki joyda boshqacha chiqadi va
+ * maktab "parol xato" degan xabarni ko'rib, parolini qayta-qayta
+ * yozib ovora bo'ladi.
+ */
+export function normalizeSchoolLogin(raw: string) {
+  return raw
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .slice(0, 40);
+}
+
+/** Login backend qoidasiga mos keladimi. */
+export const SCHOOL_LOGIN_RE = /^[a-z0-9][a-z0-9-]{2,39}$/;

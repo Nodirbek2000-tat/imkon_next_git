@@ -5,12 +5,26 @@ import { useEffect, useRef, useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea, Select } from "@/components/ui/Input";
-import { api, ApiError, type ApiCategory, type ApiProductDetail } from "@/lib/api";
-import { cn, formatPrice } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  api,
+  ApiError,
+  type ApiCategory,
+  type ApiProductDetail,
+  type ApiStudent,
+} from "@/lib/api";
+import { cn, formatPrice, initialOf } from "@/lib/utils";
 
 type Feature = { name: string; value: string };
 
 const MAX_IMAGES = 10;
+
+/** Eng kichik narx. Tekshiruv JS'da — brauzerning o'z tilidagi xabari chiqmasin. */
+const MIN_PRICE = 1000;
+
+/** Select'da ham, pastdagi umumiy xato satrida ham bir xil matn chiqsin. */
+const STUDENT_REQUIRED = "O'quvchini tanlang";
 
 /**
  * Mahsulot formasi — yaratish va tahrirlash uchun bitta komponent.
@@ -19,10 +33,22 @@ const MAX_IMAGES = 10;
  * holda ochiladi, mavjud rasmlar faqat ko'rsatiladi (alohida o'chirib
  * bo'lmaydi — backend rasmlarni "hammasi yoki hech narsa" almashtiradi:
  * yangi rasm yuborilsa eskilar BUTUNLAY almashadi, yuborilmasa tegilmaydi).
+ *
+ * Maktab akkauntida forma tepasida "O'quvchi" bo'limi paydo bo'ladi: ish
+ * tanlangan bola nomidan qo'yiladi. `initialStudent` — maktab panelidagi
+ * o'quvchi kartasidan kelgan slug, shu bola oldindan tanlangan bo'ladi.
  */
-export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDetail }) {
+export function ProductForm({
+  initialProduct,
+  initialStudent,
+}: {
+  initialProduct?: ApiProductDetail;
+  initialStudent?: string;
+}) {
   const router = useRouter();
+  const { user } = useAuth();
   const isEdit = !!initialProduct;
+  const isSchool = !!user?.is_school;
 
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   // Tahrirlash sahifasi mahsulotni `lang=uz` bilan yuklaydi — shuning uchun
@@ -52,13 +78,73 @@ export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDet
   const [previews, setPreviews] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // `null` — hali yuklanmoqda. Hunarmand akkauntida umuman yuklanmaydi.
+  const [students, setStudents] = useState<ApiStudent[] | null>(null);
+  const [studentsError, setStudentsError] = useState("");
+  const [studentSlug, setStudentSlug] = useState("");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showTranslations, setShowTranslations] = useState(false);
 
+  // Tahrirlashda mahsulot egasi — o'quvchining slug'i
+  const ownerSlug = initialProduct?.artisan.slug;
+
   useEffect(() => {
     api.categories().then(setCategories).catch(() => setCategories([]));
   }, []);
+
+  useEffect(() => {
+    if (!isSchool) return;
+    let alive = true;
+
+    api
+      .mySchoolStudents()
+      .then((list) => {
+        if (!alive) return;
+        setStudents(list);
+
+        // Yashirilgan bolaga yangi ish qo'shilmaydi, lekin tahrirlashda
+        // joriy ega ro'yxatda qolishi kerak — aks holda Select boshqa
+        // bolani ko'rsatib qolardi.
+        const pickable = list.filter((s) => s.is_active || s.slug === ownerSlug);
+        const preferred = ownerSlug ?? initialStudent ?? "";
+
+        if (pickable.some((s) => s.slug === preferred)) setStudentSlug(preferred);
+        // Bitta o'quvchi bo'lsa tanlashga hojat yo'q
+        else if (!ownerSlug && pickable.length === 1) setStudentSlug(pickable[0].slug);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        setStudents([]);
+        setStudentsError(
+          err instanceof ApiError ? err.message : "O'quvchilar ro'yxati yuklanmadi",
+        );
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [isSchool, ownerSlug, initialStudent]);
+
+  const pickable = students?.filter((s) => s.is_active || s.slug === ownerSlug) ?? [];
+  const selectedStudent = pickable.find((s) => s.slug === studentSlug) ?? null;
+
+  // Tahrirlashda mahsulot shu maktabning o'quvchisiga tegishli bo'lmasa
+  // (masalan admin boshqa ishni ochib qo'ygan) — hech narsa yubormaymiz.
+  const schoolOwns = !!students && students.some((s) => s.slug === ownerSlug);
+  const studentRequired = isSchool && (!isEdit || schoolOwns);
+  const showStudentSection = isSchool && (students === null || studentRequired);
+  // Ro'yxat yuklanmagan bo'lsa bu holat hisoblanmaydi — sabab boshqa va
+  // o'rnida yuklash xatosi ko'rinishi kerak.
+  const noStudents =
+    studentRequired && students !== null && !studentsError && pickable.length === 0;
+  // Bolalari bor, lekin hammasi yashirilgan. Bunda "o'quvchi qo'shing"
+  // deyilsa o'qituvchi borlarini yana qaytadan kiritib yuboradi.
+  const allHidden = noStudents && (students?.length ?? 0) > 0;
+  // Ro'yxat yuklanmasa o'quvchini tanlab bo'lmaydi — ish ham qo'shilmaydi.
+  // (Tahrirlashda `student` yuborilmaydi, shuning uchun u to'sqinlik emas.)
+  const cannotSave = studentRequired && !!studentsError;
 
   // Ko'rib chiqish uchun yaratilgan blob URL'larni bo'shatamiz — xotira oqmasin
   useEffect(() => {
@@ -92,14 +178,30 @@ export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDet
     event.preventDefault();
     setError("");
 
+    if (studentRequired && !studentSlug) return setError(STUDENT_REQUIRED);
     if (!title.trim()) return setError("Mahsulot nomini kiriting");
     if (!category) return setError("Kategoriyani tanlang");
-    if (!price || Number(price) <= 0) return setError("Narxni to'g'ri kiriting");
+
+    // Narx va zaxira tekshiruvi shu yerda: `min`/`step` atributlariga
+    // qoldirilsa brauzer o'z tilida ("Please enter a valid value…")
+    // ogohlantiradi — o'zbekcha interfeysda bu tushunarsiz.
+    const priceNumber = Number(price);
+    if (!price.trim() || !Number.isFinite(priceNumber))
+      return setError("Narxni kiriting");
+    if (priceNumber < MIN_PRICE)
+      return setError(`Narx kamida ${formatPrice(MIN_PRICE)} bo'lsin`);
+
+    const stockNumber = Number(stock || "1");
+    if (!Number.isInteger(stockNumber) || stockNumber < 1)
+      return setError("Nechta borligini butun son bilan kiriting — kamida 1 ta");
+
     if (!isEdit && files.length === 0) return setError("Kamida bitta rasm yuklang");
 
     setBusy(true);
     try {
       const form = new FormData();
+      // Hunarmand o'z nomidan qo'yadi — bu maydon faqat maktabda yuboriladi
+      if (studentRequired) form.append("student", studentSlug);
       form.append("title_uz", title);
       if (titleRu) form.append("title_ru", titleRu);
       if (titleEn) form.append("title_en", titleEn);
@@ -134,9 +236,112 @@ export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDet
     }
   };
 
+  // Tanlasa bo'ladigan o'quvchi yo'q — formani umuman ko'rsatmaymiz.
+  // Avval butun forma to'ldirilib, pastdagi tugma sababsiz o'chiq
+  // turardi: o'qituvchi bekorga mehnat qilib, nega bosilmasligini
+  // tushunmasdi.
+  if (noStudents)
+    return (
+      <Container className="py-12">
+        <div className="mx-auto max-w-2xl rounded-[var(--radius-card)] border-2 border-brand-600 bg-[var(--surface)] p-8 text-center">
+          <h2 className="text-xl font-bold">
+            {allHidden
+              ? "O'quvchilaringiz hozir yashirilgan"
+              : "Hali o'quvchi qo'shilmagan"}
+          </h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-ink-600 dark:text-ink-400">
+            {allHidden ? (
+              <>
+                Hamma o&apos;quvchilaringiz yashirilgan, yashirilgan o&apos;quvchi
+                nomidan esa yangi ish qo&apos;yib bo&apos;lmaydi. Maktab
+                panelidagi o&apos;quvchilar ro&apos;yxatiga kirib, kerakli
+                bolani qaytarib ko&apos;rsating — shundan keyin shu formaga
+                qaytasiz.
+              </>
+            ) : (
+              <>
+                Ish o&apos;quvchi nomidan sotuvga qo&apos;yiladi. Avval
+                o&apos;quvchi qo&apos;shing — keyin uning nomidan ish
+                qo&apos;yasiz.
+              </>
+            )}
+          </p>
+          <Button href="/profil" size="lg" className="mt-6">
+            {allHidden ? "O'quvchilar ro'yxati" : "O'quvchi qo'shish"}
+          </Button>
+        </div>
+      </Container>
+    );
+
   return (
     <Container className="py-12">
-      <form onSubmit={submit} className="mx-auto max-w-2xl space-y-8">
+      {/* `noValidate` — tekshiruvni o'zimiz qilamiz, brauzerning o'z tilidagi
+          xabarlari o'zbekcha interfeysga tushmasin */}
+      <form onSubmit={submit} noValidate className="mx-auto max-w-2xl space-y-8">
+        {/* O'quvchi — maktab uchun eng birinchi savol, shuning uchun tepada */}
+        {showStudentSection && (
+          <section className="rounded-[var(--radius-card)] border-2 border-brand-600 bg-[var(--surface)] p-6">
+            <h2 className="text-xl font-bold">Ishni kim qildi?</h2>
+            <p className="mt-1 text-[14px] text-ink-600 dark:text-ink-400">
+              Mahsulot tanlagan o&apos;quvchingiz nomidan sotuvga qo&apos;yiladi.
+            </p>
+
+            {students === null ? (
+              <Skeleton className="mt-5 h-13 w-full rounded-2xl" />
+            ) : studentsError ? (
+              <div role="alert" className="mt-5">
+                <p className="text-[14px] font-medium text-brand-600">{studentsError}</p>
+                <p className="mt-1 text-[14px] text-ink-600 dark:text-ink-400">
+                  Sahifani yangilab ko&apos;ring.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-4">
+                <Select
+                  id="student"
+                  label="O'quvchi"
+                  value={studentSlug}
+                  onChange={(e) => {
+                    setStudentSlug(e.target.value);
+                    // Tanlangach qizil ramka va "O'quvchini tanlang" yozuvi
+                    // qolib ketmasin — foydalanuvchi xato bor deb o'ylaydi
+                    if (error === STUDENT_REQUIRED) setError("");
+                  }}
+                  error={error === STUDENT_REQUIRED ? STUDENT_REQUIRED : undefined}
+                >
+                  <option value="">Tanlang…</option>
+                  {pickable.map((s) => (
+                    <option key={s.slug} value={s.slug}>
+                      {s.student_grade ? `${s.full_name} (${s.student_grade})` : s.full_name}
+                    </option>
+                  ))}
+                </Select>
+
+                {selectedStudent && (
+                  <div className="flex items-center gap-4 rounded-2xl bg-brand-50 p-4 dark:bg-brand-950">
+                    {selectedStudent.avatar ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={selectedStudent.avatar}
+                        alt=""
+                        className="size-12 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-600 text-lg font-bold text-white">
+                        {initialOf(selectedStudent.full_name)}
+                      </span>
+                    )}
+                    <p className="text-[14px] text-brand-700 dark:text-brand-300">
+                      Bu ish <strong>{selectedStudent.full_name}</strong> nomidan
+                      qo&apos;yiladi. Sotilsa, puli maktab hisobiga tushadi.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Rasmlar */}
         <section className="rounded-[var(--radius-card)] border bg-[var(--surface)] p-6">
           <h2 className="text-xl font-bold">Rasmlar</h2>
@@ -359,12 +564,15 @@ export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDet
               label="Narx (so'm)"
               type="number"
               inputMode="numeric"
-              min={1000}
-              step={1000}
+              min={MIN_PRICE}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="150000"
-              hint={price ? formatPrice(Number(price)) : undefined}
+              hint={
+                price && Number.isFinite(Number(price))
+                  ? formatPrice(Number(price))
+                  : `Kamida ${formatPrice(MIN_PRICE)}`
+              }
             />
             <Input
               id="stock"
@@ -385,8 +593,17 @@ export function ProductForm({ initialProduct }: { initialProduct?: ApiProductDet
           </p>
         )}
 
+        {/* Tugma o'chiq bo'lsa sababi yonida turadi: tepadagi xabar telefon
+            ekranida ko'rinmay qoladi */}
+        {cannotSave && (
+          <p className="text-center text-[14px] text-ink-600 dark:text-ink-400">
+            O&apos;quvchi tanlanmagani uchun saqlab bo&apos;lmaydi — tepadagi
+            xabarga qarang.
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-3">
-          <Button size="lg" disabled={busy}>
+          <Button size="lg" disabled={busy || cannotSave}>
             {busy
               ? "Saqlanmoqda…"
               : isEdit

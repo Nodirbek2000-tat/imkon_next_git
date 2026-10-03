@@ -58,6 +58,13 @@ export function AdminStatsGrid({ stats }: { stats: AdminStats | null }) {
         { label: "Takliflar", value: stats.bids_total },
       ],
     },
+    {
+      title: "Maktablar",
+      cards: [
+        { label: "Maktablar", value: stats.schools_total },
+        { label: "O'quvchilar", value: stats.students_total },
+      ],
+    },
   ];
 
   return (

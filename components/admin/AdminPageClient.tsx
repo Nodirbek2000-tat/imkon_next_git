@@ -7,6 +7,11 @@ import { AdminStatsGrid } from "@/components/admin/AdminStatsGrid";
 import { AdminApplications } from "@/components/admin/AdminApplications";
 import { AdminUsers } from "@/components/admin/AdminUsers";
 import { AdminAuctions } from "@/components/admin/AdminAuctions";
+import {
+  AdminSchools,
+  SchoolSecretCard,
+  type SchoolSecret,
+} from "@/components/admin/AdminSchools";
 import { AdminCards } from "@/components/admin/AdminCards";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +20,7 @@ type Tab =
   | "arizalar"
   | "foydalanuvchilar"
   | "auksionlar"
+  | "maktablar"
   | "kartalar";
 
 // Kirish huquqi allaqachon serverda (`app/admin/page.tsx`) tekshirilgan —
@@ -22,6 +28,14 @@ type Tab =
 export function AdminPageClient({ user }: { user: ApiUser }) {
   const [tab, setTab] = useState<Tab>("statistika");
   const [stats, setStats] = useState<AdminStats | null>(null);
+  /**
+   * Maktab logini va paroli — backend uni FAQAT bir marta beradi.
+   * Holat ataylab shu yerda: ilgari u `AdminSchools` ichida edi va admin boshqa
+   * tabga o'tishi bilan komponent unmount bo'lib, hali nusxa olinmagan parol
+   * butunlay yo'qolardi. Endi karta tablardan yuqorida, tab almashsa ham
+   * joyida turadi.
+   */
+  const [schoolSecret, setSchoolSecret] = useState<SchoolSecret | null>(null);
 
   const loadStats = useCallback(async () => {
     try {
@@ -40,6 +54,7 @@ export function AdminPageClient({ user }: { user: ApiUser }) {
     { id: "arizalar", label: "Arizalar", badge: stats?.applications_pending },
     { id: "foydalanuvchilar", label: "Foydalanuvchilar" },
     { id: "auksionlar", label: "Auksionlar" },
+    { id: "maktablar", label: "Maktablar" },
     { id: "kartalar", label: "To'lov kartalari" },
   ];
 
@@ -66,6 +81,17 @@ export function AdminPageClient({ user }: { user: ApiUser }) {
       </section>
 
       <Container className="py-10">
+        {/* key — yangi parol kelganda karta ichidagi "nusxa olindi" holati tozalanadi */}
+        {schoolSecret && (
+          <div className="mb-10">
+            <SchoolSecretCard
+              key={`${schoolSecret.login}-${schoolSecret.password}`}
+              secret={schoolSecret}
+              onClose={() => setSchoolSecret(null)}
+            />
+          </div>
+        )}
+
         {/* Tablar */}
         <div
           role="tablist"
@@ -105,6 +131,9 @@ export function AdminPageClient({ user }: { user: ApiUser }) {
         {tab === "arizalar" && <AdminApplications onChange={loadStats} />}
         {tab === "foydalanuvchilar" && <AdminUsers currentUserId={user.id} onChange={loadStats} />}
         {tab === "auksionlar" && <AdminAuctions onChange={loadStats} />}
+        {tab === "maktablar" && (
+          <AdminSchools onSecret={setSchoolSecret} onChange={loadStats} />
+        )}
         {tab === "kartalar" && <AdminCards />}
       </Container>
     </>

@@ -16,8 +16,10 @@ import { MyBalance } from "@/components/profile/MyBalance";
 import { MyReviews } from "@/components/profile/MyReviews";
 import { MyStats } from "@/components/profile/MyStats";
 import { Notifications } from "@/components/profile/Notifications";
+import { SchoolStudents } from "@/components/school/SchoolStudents";
+import { MySchool } from "@/components/school/MySchool";
 import { api, ApiError, type ApiApplication, type ApiCraft } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, initialOf } from "@/lib/utils";
 
 type TabId =
   | "buyurtmalar"
@@ -27,12 +29,17 @@ type TabId =
   | "dokon"
   | "mahsulotlar"
   | "statistika"
-  | "balans";
+  | "balans"
+  | "oquvchilar"
+  | "maktab";
 
 export default function ProfilePage() {
   const router = useRouter();
   const { user, loading, logout, refreshUser } = useAuth();
-  const [tab, setTab] = useState<TabId>("buyurtmalar");
+  // `null` — foydalanuvchi hali bo'lim tanlamagan. Boshlang'ich bo'lim
+  // `user` yuklangach hisoblanadi (maktabda u "o'quvchilar" bo'lishi kerak,
+  // lekin birinchi renderda `user` hali yo'q).
+  const [chosenTab, setChosenTab] = useState<TabId | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/kirish");
@@ -41,17 +48,40 @@ export default function ProfilePage() {
   if (loading) return <PageLoader label="Profil yuklanmoqda" />;
   if (!user) return null;
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "buyurtmalar", label: "Buyurtmalarim" },
-    { id: "sharhlar", label: "Sharhlarim" },
-    { id: "bildirishnoma", label: "Bildirishnomalar" },
-    { id: "malumot", label: "Ma'lumotlarim" },
-  ];
-  if (user.is_artisan) {
+  const tab: TabId = chosenTab ?? (user.is_school ? "oquvchilar" : "buyurtmalar");
+
+  const heading = user.full_name || (user.is_school ? "Maktab" : "Ismsiz foydalanuvchi");
+  // Maktab akkauntida telefon YO'Q (null) — uning o'rnida maktab nomi
+  // ko'rinadi. Sarlavhada allaqachon shu nom turgan bo'lsa takrorlamaymiz.
+  const subtitle = user.is_school
+    ? user.school_name === heading
+      ? ""
+      : user.school_name
+    : user.phone;
+
+  const tabs: { id: TabId; label: string }[] = [];
+  if (user.is_school) {
+    // Maktab xarid qilmaydi, sotadi: buyurtma, sharh va "Do'kon ochish"
+    // bo'limlari unga keraksiz (backend maktabdan ariza ham qabul qilmaydi).
+    tabs.push({ id: "oquvchilar", label: "O'quvchilar" });
+    tabs.push({ id: "mahsulotlar", label: "Mahsulotlar" });
+    tabs.push({ id: "statistika", label: "Do'kon statistikasi" });
+    tabs.push({ id: "balans", label: "Balans" });
+    tabs.push({ id: "maktab", label: "Maktab sahifasi" });
+    tabs.push({ id: "bildirishnoma", label: "Bildirishnomalar" });
+  } else if (user.is_artisan) {
+    tabs.push({ id: "buyurtmalar", label: "Buyurtmalarim" });
+    tabs.push({ id: "sharhlar", label: "Sharhlarim" });
+    tabs.push({ id: "bildirishnoma", label: "Bildirishnomalar" });
+    tabs.push({ id: "malumot", label: "Ma'lumotlarim" });
     tabs.push({ id: "mahsulotlar", label: "Mahsulotlarim" });
     tabs.push({ id: "statistika", label: "Do'kon statistikasi" });
     tabs.push({ id: "balans", label: "Balans" });
   } else {
+    tabs.push({ id: "buyurtmalar", label: "Buyurtmalarim" });
+    tabs.push({ id: "sharhlar", label: "Sharhlarim" });
+    tabs.push({ id: "bildirishnoma", label: "Bildirishnomalar" });
+    tabs.push({ id: "malumot", label: "Ma'lumotlarim" });
     tabs.push({ id: "dokon", label: "Do'kon ochish" });
   }
 
@@ -66,17 +96,15 @@ export default function ProfilePage() {
               <img src={user.avatar} alt="" className="size-14 rounded-2xl object-cover" />
             ) : (
               <span className="grid size-14 place-items-center rounded-2xl bg-brand-600 font-display text-xl font-extrabold text-white">
-                {(user.full_name || user.phone).charAt(0).toUpperCase()}
+                {initialOf(user.full_name, user.phone)}
               </span>
             )}
             <div>
-              <h1 className="text-2xl font-extrabold">
-                {user.full_name || "Ismsiz foydalanuvchi"}
-              </h1>
+              <h1 className="text-2xl font-extrabold">{heading}</h1>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-600 dark:text-ink-400">
-                <span>{user.phone}</span>
-                <Badge tone={user.is_artisan ? "gold" : "neutral"}>
-                  {user.is_artisan ? "Hunarmand" : "Foydalanuvchi"}
+                {subtitle && <span>{subtitle}</span>}
+                <Badge tone={user.is_school || user.is_artisan ? "gold" : "neutral"}>
+                  {user.is_school ? "Maktab" : user.is_artisan ? "Hunarmand" : "Foydalanuvchi"}
                 </Badge>
               </div>
             </div>
@@ -104,7 +132,7 @@ export default function ProfilePage() {
                 type="button"
                 role="tab"
                 aria-selected={tab === item.id}
-                onClick={() => setTab(item.id)}
+                onClick={() => setChosenTab(item.id)}
                 className={cn(
                   "shrink-0 rounded-2xl px-4 py-3 text-left text-sm font-semibold whitespace-nowrap transition-colors duration-300 lg:shrink lg:whitespace-normal",
                   tab === item.id
@@ -128,8 +156,10 @@ export default function ProfilePage() {
               </div>
             )}
             {tab === "dokon" && <ShopApplication />}
+            {tab === "oquvchilar" && <SchoolStudents />}
+            {tab === "maktab" && <MySchool />}
             {tab === "mahsulotlar" && (
-              <ShopTabHeader title="Mahsulotlarim">
+              <ShopTabHeader title={user.is_school ? "O'quvchilar ishlari" : "Mahsulotlarim"}>
                 <MyProducts />
               </ShopTabHeader>
             )}
@@ -154,13 +184,25 @@ function ShopTabHeader({ title, children }: { title: string; children: React.Rea
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold">{title}</h2>
-        {user?.artisan_slug && (
-          <Link
-            href={`/hunarmandlar/${user.artisan_slug}`}
-            className="text-sm font-medium text-brand-600 hover:underline"
-          >
-            Do&apos;konimni ko&apos;rish →
-          </Link>
+        {/* Maktabning ommaviy sahifasi do'kon emas — boshqa manzil, boshqa matn */}
+        {user?.is_school ? (
+          user.school_slug && (
+            <Link
+              href={`/maktablar/${user.school_slug}`}
+              className="text-sm font-medium text-brand-600 hover:underline"
+            >
+              Maktab sahifamni ko&apos;rish →
+            </Link>
+          )
+        ) : (
+          user?.artisan_slug && (
+            <Link
+              href={`/hunarmandlar/${user.artisan_slug}`}
+              className="text-sm font-medium text-brand-600 hover:underline"
+            >
+              Do&apos;konimni ko&apos;rish →
+            </Link>
+          )
         )}
       </div>
       {children}
@@ -240,7 +282,7 @@ function ProfileForm({ onSaved }: { onSaved: () => Promise<void> }) {
             />
           ) : (
             <span className="grid size-full place-items-center font-display text-xl font-extrabold text-ink-400">
-              {(user.full_name || user.phone).charAt(0).toUpperCase()}
+              {initialOf(user.full_name, user.phone)}
             </span>
           )}
         </div>

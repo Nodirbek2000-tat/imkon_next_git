@@ -6,14 +6,33 @@ import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/PageHeader";
 import { adminApi, ApiError, type AdminUser } from "@/lib/api";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, initialOf } from "@/lib/utils";
 
-const FILTERS: { params: Record<string, string>; label: string }[] = [
+type Role = AdminUser["role"];
+
+/**
+ * `role` — tanlangan rol. Server `?role=` ni qo'llasa ham, bu yerda yana
+ * bir marta tekshiramiz (pastdagi izohga qara).
+ */
+const FILTERS: { params: Record<string, string>; label: string; role?: Role }[] = [
   { params: {}, label: "Hammasi" },
-  { params: { role: "user" }, label: "Foydalanuvchilar" },
-  { params: { role: "artisan" }, label: "Hunarmandlar" },
+  { params: { role: "user" }, label: "Xaridorlar", role: "user" },
+  { params: { role: "artisan" }, label: "Hunarmandlar", role: "artisan" },
+  { params: { role: "school" }, label: "Maktablar", role: "school" },
+  { params: { role: "student" }, label: "O'quvchilar", role: "student" },
   { params: { admins: "1" }, label: "Adminlar" },
 ];
+
+/**
+ * Rol belgisi. Har rolga alohida ohang — "Bloklangan" (neutral) bilan
+ * ham adashmasin, aks holda ro'yxatda maktab oddiy xaridordan
+ * farqlanmaydi.
+ */
+const ROLE_BADGE: Partial<Record<Role, { label: string; tone: "gold" | "live" | "success" }>> = {
+  artisan: { label: "Hunarmand", tone: "gold" },
+  school: { label: "Maktab", tone: "live" },
+  student: { label: "O'quvchi", tone: "success" },
+};
 
 export function AdminUsers({
   currentUserId,
@@ -36,6 +55,10 @@ export function AdminUsers({
       const params: Record<string, string> = { ...FILTERS[filterIndex].params };
       if (search.trim()) params.search = search.trim();
       const data = await adminApi.users(params);
+
+      // Backend `?role=` ni barcha maqomlar uchun qo'llaydi (maktab va
+      // o'quvchi ham), shuning uchun natijani bu yerda qayta filtrlash
+      // shart emas — `count` ham to'g'ridan-to'g'ri serverdan olinadi.
       setUsers(data.results);
       setCount(data.count);
     } catch (err) {
@@ -101,7 +124,15 @@ export function AdminUsers({
       ) : error ? (
         <ErrorState message={error} onRetry={load} />
       ) : users.length === 0 ? (
-        <EmptyState title="Foydalanuvchi topilmadi" />
+        /* Qidiruv natijasi bo'sh bo'lishi va "bu rolda hali hech kim yo'q"
+           butunlay boshqa narsa — bitta matn ikkisiga ham yaramaydi */
+        search.trim() ? (
+          <EmptyState title="Hech narsa topilmadi" hint="Boshqa ism yoki raqam bilan qidiring." />
+        ) : filterIndex === 0 ? (
+          <EmptyState title="Hali foydalanuvchi yo'q" />
+        ) : (
+          <EmptyState title={`${FILTERS[filterIndex].label} hali yo'q`} />
+        )
       ) : (
         <>
           <p className="mb-4 text-sm text-ink-600 dark:text-ink-400">{count} ta</p>
@@ -134,7 +165,18 @@ function UserRow({
   const [busy, setBusy] = useState<"admin" | "active" | null>(null);
   const [error, setError] = useState("");
 
+  const roleBadge = ROLE_BADGE[user.role];
+
   const run = async (action: "admin" | "active") => {
+    // Maktabni bloklash = maktab tizimga kira olmay qoladi va buni
+    // hech kim darrov sezmaydi. Shuning uchun bir marta so'raymiz.
+    if (action === "active" && user.is_active && user.role === "school") {
+      const ok = window.confirm(
+        `“${user.full_name || "Maktab"}” bloklansa, maktab tizimga kira olmaydi va o'quvchilari saytda ko'rinmay qoladi. Davom etasizmi?`,
+      );
+      if (!ok) return;
+    }
+
     setBusy(action);
     setError("");
     try {
@@ -162,7 +204,7 @@ function UserRow({
         <img src={user.avatar} alt="" className="size-11 rounded-xl object-cover" />
       ) : (
         <span className="grid size-11 place-items-center rounded-xl bg-ink-200 font-bold dark:bg-ink-800">
-          {(user.full_name || user.phone).charAt(user.full_name ? 0 : 4).toUpperCase()}
+          {initialOf(user.full_name, user.phone)}
         </span>
       )}
 
@@ -170,13 +212,15 @@ function UserRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-semibold">{user.full_name || "Ismsiz"}</p>
           {user.is_admin && <Badge tone="brand">Admin</Badge>}
-          {user.role === "artisan" && <Badge tone="gold">Hunarmand</Badge>}
+          {roleBadge && <Badge tone={roleBadge.tone}>{roleBadge.label}</Badge>}
           {!user.is_active && <Badge tone="neutral">Bloklangan</Badge>}
           {isSelf && <span className="text-[12px] text-ink-600 dark:text-ink-400">(siz)</span>}
         </div>
 
+        {/* Maktab va o'quvchi akkauntida telefon YO'Q — `null` bo'lsa
+            boshida osilib qolgan "· " ajratgich qolmasin */}
         <p className="mt-0.5 text-[13px] text-ink-600 dark:text-ink-400">
-          {user.phone} · {formatDate(user.created_at)}
+          {[user.phone, formatDate(user.created_at)].filter(Boolean).join(" · ")}
           {user.artisan_slug && (
             <>
               {" · "}
@@ -184,7 +228,7 @@ function UserRow({
                 href={`/hunarmandlar/${user.artisan_slug}`}
                 className="text-brand-600 hover:underline"
               >
-                do&apos;kon
+                {user.role === "student" ? "sahifasi" : "do'kon"}
               </Link>
             </>
           )}

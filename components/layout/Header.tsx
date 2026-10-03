@@ -11,12 +11,13 @@ import { LangSwitcher } from "@/components/ui/LangSwitcher";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCart } from "@/components/cart/CartProvider";
 import { Logo } from "@/components/ui/Logo";
-import { cn } from "@/lib/utils";
+import { cn, initialOf } from "@/lib/utils";
 
 const nav = [
   { href: "/katalog", label: "Mahsulotlar" },
   { href: "/auksion", label: "Auksion" },
   { href: "/hunarmandlar", label: "Hunarmandlar" },
+  { href: "/maktablar", label: "Maktablar" },
   { href: "/haqida", label: "Biz haqimizda" },
 ];
 
@@ -77,7 +78,7 @@ export function Header() {
         href="#main"
         className="sr-only-focusable absolute top-4 left-4 z-100 rounded-full bg-brand-600 px-5 py-3 text-sm font-semibold text-white"
       >
-        Asosiy kontentga o'tish
+        Asosiy kontentga o&apos;tish
       </a>
 
       <header
@@ -227,7 +228,7 @@ export function Header() {
                   className="ml-1 hidden items-center gap-2 rounded-full border-2 border-[var(--line)] py-1.5 pr-4 pl-1.5 text-sm font-semibold transition-colors duration-300 hover:border-brand-600 sm:inline-flex"
                 >
                   <span className="grid size-7 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">
-                    {(user.full_name || user.phone).charAt(0).toUpperCase()}
+                    {initialOf(user.full_name, user.phone)}
                   </span>
                   {user.full_name.split(" ")[0] || "Profil"}
                 </Link>

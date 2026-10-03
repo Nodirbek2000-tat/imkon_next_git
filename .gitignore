@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Namuna fayl git'ga tushsin — ichida sir yo'q
+!.env.example

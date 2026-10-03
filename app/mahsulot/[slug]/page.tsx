@@ -172,7 +172,9 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               {product.artisan.shop_name.charAt(0)}
             </span>
             <span>
-              <span className="block text-[13px] text-ink-600 dark:text-ink-400">Hunarmand</span>
+              <span className="block text-[13px] text-ink-600 dark:text-ink-400">
+                {product.artisan.kind === "student" ? "O'quvchi" : "Hunarmand"}
+              </span>
               <span className="block font-bold transition-colors group-hover:text-brand-600">
                 {product.artisan.shop_name}
               </span>

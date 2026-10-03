@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
@@ -16,7 +17,7 @@ import {
   type ApiPost,
   type ApiProduct,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, initialOf } from "@/lib/utils";
 
 type Tab = "ishlar" | "postlar" | "haqida";
 
@@ -50,7 +51,7 @@ export default function ArtisanProfilePage({
         setPosts(postPage.results);
       })
       .catch((err) => {
-        if (alive) setError(err instanceof ApiError ? err.message : "Hunarmand topilmadi");
+        if (alive) setError(err instanceof ApiError ? err.message : "Sahifa topilmadi");
       })
       .finally(() => alive && setLoading(false));
 
@@ -64,15 +65,25 @@ export default function ArtisanProfilePage({
   if (error || !artisan) {
     return (
       <Container className="py-20">
-        <ErrorState message={error || "Hunarmand topilmadi"} />
-        <div className="mt-6 text-center">
+        <ErrorState message={error || "Bu sahifa topilmadi"} />
+        {/* Sahifa yuklanmagani uchun bu kim bo'lganini (hunarmand yoki
+            o'quvchi) bilmaymiz — shuning uchun matn betaraf, va o'quvchi
+            sahifasiga maktabdan kelgan odam uchun ikkinchi yo'l ham bor */}
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Button href="/hunarmandlar" variant="outline">
-            Hunarmandlarga qaytish
+            Hunarmandlar
+          </Button>
+          <Button href="/maktablar" variant="outline">
+            Maktablar
           </Button>
         </div>
       </Container>
     );
   }
+
+  // Sahifa matnlari o'quvchi va hunarmand uchun boshqacha — "Hunarmand tez
+  // orada ish jarayonini ulashadi" degan gap 7-sinf bolasi haqida g'alati
+  const isStudent = artisan.kind === "student";
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
     { id: "ishlar", label: "Ishlar", count: products.length },
@@ -114,16 +125,84 @@ export default function ArtisanProfilePage({
           </div>
 
           <div className="min-w-0 flex-1 pt-3">
-            <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-extrabold">
+            {/* Maktab o'quvchisi ekani sarlavhadan oldin ko'rinadi — xaridor
+                bu ishni 7-sinf bolasi qilganini bilib tursin */}
+            {isStudent && <Badge tone="success">O&apos;quvchi</Badge>}
+            <h1
+              className={cn(
+                "text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-extrabold",
+                isStudent && "mt-2.5",
+              )}
+            >
               {artisan.shop_name}
             </h1>
             <p className="mt-1 text-ink-600 dark:text-ink-400">
               {artisan.user.full_name}
               {artisan.region && ` · ${artisan.region}`}
             </p>
+
+            {/* Maktab faqat o'quvchida bo'ladi — oddiy hunarmandda null.
+                Bola kimning qo'li ostida ishlayotgani ko'rinib turishi va
+                bir bosishda maktab sahifasiga o'tish mumkin bo'lishi kerak. */}
+            {artisan.school && (
+              <Link
+                href={`/maktablar/${artisan.school.slug}`}
+                className="group/school mt-3 inline-flex max-w-full items-center gap-3 rounded-full border bg-[var(--surface)] py-2 pr-4 pl-2 shadow-[var(--shadow-soft)] transition-[border-color,box-shadow] duration-300 [transition-timing-function:var(--ease-out-soft)] hover:border-brand-600 hover:shadow-[var(--shadow-lift)]"
+              >
+                {artisan.school.logo ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={artisan.school.logo}
+                    alt=""
+                    className="size-9 shrink-0 rounded-full bg-[var(--bg)] object-contain"
+                  />
+                ) : (
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ink-900 font-display text-sm font-extrabold text-white dark:bg-ink-100 dark:text-ink-950">
+                    {initialOf(artisan.school.name)}
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-semibold tracking-[0.12em] text-ink-500 uppercase dark:text-ink-400">
+                    Maktab
+                  </span>
+                  <span className="block text-[15px] font-bold transition-colors duration-300 group-hover/school:text-brand-600">
+                    {artisan.school.name}
+                    {artisan.student_grade && (
+                      <span className="font-medium text-ink-600 dark:text-ink-400">
+                        {" · "}
+                        {artisan.student_grade}
+                      </span>
+                    )}
+                  </span>
+                  {/* Telefonda `hover` YO'Q — bosiladigan narsa ekani
+                      harakatsiz ham ko'rinib turishi kerak, aks holda
+                      bola -> maktab yo'li shu joyda uzilib qoladi */}
+                  <span className="block text-[12px] font-semibold text-brand-600">
+                    Maktab sahifasini ko&apos;rish
+                  </span>
+                </span>
+
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className="ml-1 shrink-0 text-brand-600 transition-transform duration-300 [transition-timing-function:var(--ease-out-soft)] group-hover/school:translate-x-1"
+                >
+                  <path
+                    d="m9 6 6 6-6 6"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
+            )}
           </div>
 
-          <dl className="flex gap-8">
+          <dl className="flex w-full gap-8 sm:w-auto">
             <ProfileStat value={artisan.products_count} label="Ish" />
             <ProfileStat value={artisan.posts_count} label="Post" />
             <ProfileStat value={artisan.sold_count} label="Sotilgan" />
@@ -171,7 +250,14 @@ export default function ArtisanProfilePage({
         <div className="py-10">
           {tab === "ishlar" &&
             (products.length === 0 ? (
-              <EmptyState title="Hali ish qo'shilmagan" />
+              <EmptyState
+                title="Hali ish qo'shilmagan"
+                hint={
+                  isStudent
+                    ? "O'quvchining ishlari maktab tomonidan qo'shiladi."
+                    : undefined
+                }
+              />
             ) : (
               <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.map((product, i) => (
@@ -186,7 +272,14 @@ export default function ArtisanProfilePage({
 
           {tab === "postlar" &&
             (posts.length === 0 ? (
-              <EmptyState title="Hali post yo'q" hint="Hunarmand tez orada ish jarayonini ulashadi." />
+              <EmptyState
+                title="Hali post yo'q"
+                hint={
+                  isStudent
+                    ? "Maktab o'quvchining ish jarayonini keyinroq ulashadi."
+                    : "Hunarmand tez orada ish jarayonini ulashadi."
+                }
+              />
             ) : (
               <ul className="mx-auto grid max-w-2xl gap-8">
                 {posts.map((post, i) => (
