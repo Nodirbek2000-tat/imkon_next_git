@@ -87,11 +87,19 @@ export function Textarea({
 export function Select({
   label,
   error,
+  hint,
   id,
   className,
   children,
   ...props
-}: { label: string; error?: string; id: string } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+}: {
+  label: string;
+  error?: string;
+  // `Input` dagi kabi — maydon ostidagi izoh. Masalan ro'yxat bo'sh
+  // bo'lganda nega tanlab bo'lmasligini aytish uchun.
+  hint?: string;
+  id: string;
+} & React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className="w-full">
       <label htmlFor={id} className="mb-2 block text-sm font-semibold">
@@ -110,6 +118,11 @@ export function Select({
       >
         {children}
       </select>
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-2 text-[13px] text-ink-600 dark:text-ink-400">
+          {hint}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-2 text-[13px] font-medium text-brand-600">
           {error}

@@ -90,8 +90,22 @@ export function ProductForm({
   // Tahrirlashda mahsulot egasi — o'quvchining slug'i
   const ownerSlug = initialProduct?.artisan.slug;
 
+  // `null` — hali yuklanmoqda, `[]` — haqiqatan bo'sh. Ikkisini ajratish
+  // SHART: avval xato jim yutilardi va foydalanuvchi faqat bo'sh ro'yxatni
+  // ko'rib, nega tanlay olmayotganini bilmasdi.
+  const [categoriesError, setCategoriesError] = useState(false);
+
   useEffect(() => {
-    api.categories().then(setCategories).catch(() => setCategories([]));
+    api
+      .categories()
+      .then((list) => {
+        setCategories(list);
+        setCategoriesError(false);
+      })
+      .catch(() => {
+        setCategories([]);
+        setCategoriesError(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -495,6 +509,14 @@ export function ProductForm({
             label="Kategoriya"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            disabled={categories.length === 0}
+            hint={
+              categories.length > 0
+                ? undefined
+                : categoriesError
+                  ? "Kategoriyalarni yuklab bo'lmadi. Sahifani yangilab ko'ring."
+                  : "Kategoriyalar hali qo'shilmagan — administrator bilan bog'laning."
+            }
           >
             <option value="">Tanlang…</option>
             {categories.map((c) => (
