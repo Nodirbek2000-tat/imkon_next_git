@@ -79,6 +79,18 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   const url = new URL(path, window.location.origin);
   if (!url.searchParams.has("lang")) url.searchParams.set("lang", currentLang);
 
+  // Oxiridagi `/` OLIB TASHLANADI. Next'da `trailingSlash: false`
+  // (standart qiymat), ya'ni `/api/products/` so'ralsa u avval 308
+  // bilan `/api/products` ga yo'naltiradi — HAR BIR so'rov ikki
+  // marta ketardi. Serverda bu har safar ~0.4 soniya edi.
+  //
+  // Django esa `/` bilan tugagan yo'lni kutadi (`APPEND_SLASH`) —
+  // uni proxy (`app/api/[...path]/route.ts`) qayta qo'shib beradi,
+  // shuning uchun backend tomonida hech narsa o'zgarmaydi.
+  if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
+    url.pathname = url.pathname.slice(0, -1);
+  }
+
   let response: Response;
   try {
     response = await fetch(url.pathname + url.search, {
