@@ -1,5 +1,21 @@
 import type { Metadata } from "next";
+import { Playfair_Display } from "next/font/google";
 import { Invitation } from "@/components/taklifnoma/Invitation";
+
+/**
+ * Taklifnoma matni uchun alohida serif shrift.
+ *
+ * Saytning qolgan qismi grotesk shriftda — u zamonaviy, lekin taklifnoma
+ * uchun quruq. Playfair faqat shu sahifada yuklanadi, boshqa sahifalarga
+ * og'irlik qo'shmaydi. `italic` ataylab so'ralgan: taklif matni qiyshiq
+ * yoziladi, u holda brauzer shriftni sun'iy qiyshaytirmaydi.
+ */
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  display: "swap",
+});
 
 /**
  * Taklifnoma sahifasi.
@@ -37,5 +53,9 @@ export const metadata: Metadata = {
 };
 
 export default function TaklifnomaPage() {
-  return <Invitation />;
+  return (
+    <div className={playfair.variable}>
+      <Invitation />
+    </div>
+  );
 }

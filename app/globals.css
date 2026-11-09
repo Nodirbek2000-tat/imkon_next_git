@@ -221,6 +221,15 @@
     text-wrap: balance;
   }
 
+  /* Taklifnoma matni uchun serif shrift.
+     `@theme` dagi `--font-*` orqali emas, aniq sinf qilib yozilgan:
+     shrift o'zgaruvchisi (`--font-playfair`) butun saytda emas, faqat
+     `app/taklifnoma/page.tsx` dagi o'ramda e'lon qilinadi, `@theme`
+     esa uni `:root` da kutadi va utility bo'sh chiqib qolardi. */
+  .font-invite {
+    font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  }
+
   /* Gorizontal maska — marquee chetlari yumshoq so'nadi */
   .mask-fade-x {
     mask-image: linear-gradient(
