@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Geist, Geist_Mono, Bricolage_Grotesque } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { Chrome } from "@/components/layout/Chrome";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { CartProvider } from "@/components/cart/CartProvider";
 import "./globals.css";
@@ -62,11 +63,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         <AuthProvider>
           <CartProvider>
-            <Header />
+            <Chrome>
+              <Header />
+            </Chrome>
             <main id="main" className="flex-1">
               {children}
             </main>
-            <Footer />
+            <Chrome>
+              <Footer />
+            </Chrome>
           </CartProvider>
         </AuthProvider>
       </body>

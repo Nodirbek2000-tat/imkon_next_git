@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PageLoader } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/PageHeader";
 import { Comments, StaticStars } from "@/components/Comments";
+import { LikeButton } from "@/components/LikeButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCart } from "@/components/cart/CartProvider";
 import { api, ApiError, type ApiProductDetail } from "@/lib/api";
@@ -163,6 +164,22 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               </span>
             </a>
           )}
+
+          {/* Ovoz berish — "Reyting" bo'limidagi o'rinni shu belgilaydi */}
+          <div className="mt-5 flex items-center gap-3">
+            <LikeButton
+              slug={product.slug}
+              initialLiked={product.is_liked}
+              initialCount={product.likes_count}
+              size="lg"
+            />
+            {/* Son ATAYLAB takrorlanmaydi: u tugmaning ichida va faqat
+                o'sha yerda yangilanadi. Ikki joyda ko'rsatsak, layk
+                bosilgach biri 5, ikkinchisi 4 bo'lib qolardi. */}
+            <span className="text-[13px] text-ink-600 dark:text-ink-400">
+              kishi ovoz berdi
+            </span>
+          </div>
 
           <Link
             href={`/hunarmandlar/${product.artisan.slug}`}

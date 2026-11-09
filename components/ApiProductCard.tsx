@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
+import { LikeButton } from "@/components/LikeButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useCart } from "@/components/cart/CartProvider";
 import { api } from "@/lib/api";
@@ -127,18 +128,26 @@ export function ApiProductCard({ product }: { product: ApiProduct }) {
 
         {/* Balandligi doim band — reytingi bor va yo'q kartalar bir xil
             bo'yda qatorda tekis tursin */}
-        <div className="flex min-h-4 items-center gap-1 text-[12px]">
-          {product.rating_count > 0 && product.rating_avg !== null ? (
-            <>
-              <StarIcon className="text-gold-500" />
-              <span className="font-semibold">{product.rating_avg.toFixed(1)}</span>
-              <span className="text-ink-500 dark:text-ink-400">
-                ({product.rating_count} sharh)
-              </span>
-            </>
-          ) : (
-            <span className="text-ink-400 dark:text-ink-500">Sharh yo&apos;q</span>
-          )}
+        <div className="flex min-h-4 items-center justify-between gap-2 text-[12px]">
+          <span className="flex items-center gap-1">
+            {product.rating_count > 0 && product.rating_avg !== null ? (
+              <>
+                <StarIcon className="text-gold-500" />
+                <span className="font-semibold">{product.rating_avg.toFixed(1)}</span>
+                <span className="text-ink-500 dark:text-ink-400">
+                  ({product.rating_count})
+                </span>
+              </>
+            ) : (
+              <span className="text-ink-400 dark:text-ink-500">Sharh yo&apos;q</span>
+            )}
+          </span>
+
+          <LikeButton
+            slug={product.slug}
+            initialLiked={product.is_liked}
+            initialCount={product.likes_count}
+          />
         </div>
 
         <div className="mt-auto pt-2">
@@ -291,14 +300,22 @@ function FavoriteButton({ slug, initial }: { slug: string; initial: boolean }) {
       onClick={toggle}
       aria-pressed={favorited}
       aria-label={favorited ? "Sevimlilardan olib tashlash" : "Sevimlilarga qo'shish"}
+      title={favorited ? "Sevimlilardan olib tashlash" : "Sevimlilarga saqlash"}
       className="absolute top-2 right-2 grid size-8 place-items-center rounded-full bg-white/90 text-ink-700 shadow-sm backdrop-blur-sm transition-transform duration-200 hover:scale-110 dark:bg-ink-950/80 dark:text-ink-200"
     >
-      <HeartIcon filled={favorited} className={cn(favorited && "text-brand-600")} />
+      <BookmarkIcon filled={favorited} className={cn(favorited && "text-brand-600")} />
     </button>
   );
 }
 
-function HeartIcon({ filled, className }: { filled: boolean; className?: string }) {
+/**
+ * Sevimlilar belgisi — xatcho'p, yurakcha EMAS.
+ *
+ * Yurakcha endi "layk" (ommaviy ovoz) uchun ishlatiladi. Ikkalasi ham
+ * yurakcha bo'lsa foydalanuvchi qaysi biri nima qilishini bilmasdi:
+ * biri shaxsiy ro'yxatga saqlaydi, ikkinchisi ochiq ovoz beradi.
+ */
+function BookmarkIcon({ filled, className }: { filled: boolean; className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -308,10 +325,7 @@ function HeartIcon({ filled, className }: { filled: boolean; className?: string 
       className={cn("size-4", className)}
       aria-hidden="true"
     >
-      <path
-        d="M12 21s-7.5-4.6-10-9.2C.5 8.4 2.3 5 5.8 5c2 0 3.4 1 4.2 2.2C10.8 6 12.2 5 14.2 5c3.5 0 5.3 3.4 3.8 6.8-2.5 4.6-10 9.2-10 9.2Z"
-        strokeLinejoin="round"
-      />
+      <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z" strokeLinejoin="round" />
     </svg>
   );
 }

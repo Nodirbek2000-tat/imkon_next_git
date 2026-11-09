@@ -15,6 +15,7 @@ import { cn, initialOf } from "@/lib/utils";
 
 const nav = [
   { href: "/katalog", label: "Mahsulotlar" },
+  { href: "/reyting", label: "Reyting" },
   { href: "/auksion", label: "Auksion" },
   { href: "/hunarmandlar", label: "Hunarmandlar" },
   { href: "/maktablar", label: "Maktablar" },

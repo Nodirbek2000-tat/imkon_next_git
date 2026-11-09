@@ -195,6 +195,10 @@ export type ApiProduct = {
   rating_avg: number | null;
   rating_count: number;
   is_favorited: boolean;
+  /** Ommaviy ovozlar soni — hamma ko'radi ("Reyting" shunga qarab tuziladi). */
+  likes_count: number;
+  /** Joriy foydalanuvchi layk bosganmi. */
+  is_liked: boolean;
 };
 
 export type ApiProductDetail = ApiProduct & {
@@ -711,6 +715,17 @@ export const api = {
 
   myFavorites: () =>
     apiFetch<Paginated<ApiProduct>>("/api/products/my-favorites/", { auth: true }),
+
+  // layklar — "sevimlilar"dan farqli, bu OMMAVIY ovoz
+  toggleLike: (slug: string) =>
+    apiFetch<{ liked: boolean; likes_count: number }>(`/api/products/${slug}/like/`, {
+      method: "POST",
+      auth: true,
+    }),
+
+  /** "Reyting" bo'limi — eng ko'p ovoz yig'ganlar tepada. */
+  topProducts: (params: Record<string, string> = {}) =>
+    apiFetch<Paginated<ApiProduct>>(`/api/products/top/?${new URLSearchParams(params)}`),
 
   // katalog
   categories: () => apiFetch<ApiCategory[]>("/api/categories/"),
