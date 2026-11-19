@@ -17,7 +17,7 @@ import { Countdown } from "@/components/Countdown";
  */
 
 /** Tadbir vaqti — O'zbekiston (UTC+5). Taymer shunga qarab sanaydi. */
-const EVENT_AT = "2026-11-12T11:00:00+05:00";
+const EVENT_AT = "2026-11-21T11:00:00+05:00";
 
 const ADDRESS =
   "Samarqand Davlat Tibbiyot Universiteti Ko'p tarmoqli klinikasi, " +
@@ -360,8 +360,12 @@ function Letter({ reduced }: { reduced: boolean }) {
         >
           Kelishingizdan mamnun bo&apos;lamiz.
           <br />
-          <span className="font-semibold text-ink-900 not-italic">
-            Hurmat bilan, «Imkon Plus» jamoasi
+          <span className="mt-3 block not-italic">
+            Hurmat bilan,
+            <br />
+            <span className="font-semibold text-ink-900">Abduvaliyeva Malika</span>
+            <br />
+            <span className="font-semibold text-ink-900">«Imkon Plus» jamoasi</span>
           </span>
         </motion.p>
 
@@ -494,14 +498,14 @@ function DateBlock({ reduced }: { reduced: boolean }) {
           transition={{ delay: 1, type: "spring", stiffness: 220, damping: 12 }}
           className="font-display text-6xl leading-none font-extrabold sm:text-7xl"
         >
-          12
+          21
         </motion.span>
 
         <span className="h-14 w-px bg-white/30 sm:h-16" aria-hidden="true" />
 
         <div className="text-left">
           <p className="font-display text-xl leading-tight font-bold sm:text-2xl">Noyabr</p>
-          <p className="text-sm text-white/80">2026-yil, chorshanba</p>
+          <p className="text-sm text-white/80">2026-yil, shanba</p>
           <p className="mt-1 font-display text-2xl leading-none font-extrabold sm:text-3xl">
             11:00
           </p>

@@ -28,7 +28,7 @@ const playfair = Playfair_Display({
 
 const TITLE = "Imkon Plus hayriya auksioniga taklifnoma";
 const DESCRIPTION =
-  "12-noyabr, soat 11:00 — Samarqand Davlat Tibbiyot Universiteti " +
+  "21-noyabr, soat 11:00 — Samarqand Davlat Tibbiyot Universiteti " +
   "ko'p tarmoqli klinikasi, Morfologiya binosi, 1-qavat, faollar zali.";
 const IMAGE = "https://imkon-plus.uz/taklifnoma/logo.png";
 
